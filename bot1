@@ -1,0 +1,228 @@
+//+------------------------------------------------------------------+
+//|                                             OpenOrdersUpdate.mq4 |
+//|                        Copyright 2022, MetaQuotes Software Corp. |
+//|                                             https://www.mql5.com |
+//+------------------------------------------------------------------+
+#property copyright "Copyright 2022, MetaQuotes Software Corp."
+#property link      "https://www.mql5.com"
+#property version   "1.00"
+#property strict
+//+------------------------------------------------------------------+
+//| Expert initialization function                                   |
+//+------------------------------------------------------------------+
+
+static int ticket ;
+extern double lotSize=0.1;
+extern double stopLoss=500;
+extern double takeProfit=1600;
+extern double trailStop=100;
+extern double martingale=2;
+int OnInit()
+  {
+//---
+
+//---
+   return(INIT_SUCCEEDED);
+  }
+//+------------------------------------------------------------------+
+//| Expert deinitialization function                                 |
+//+------------------------------------------------------------------+
+void OnDeinit(const int reason)
+  {
+//---
+
+  }
+//+------------------------------------------------------------------+
+//| Expert tick function                                             |
+//+------------------------------------------------------------------+
+void OnTick()
+  {
+   double emaFast_Current=iMA(NULL,0,10,0,MODE_EMA,PRICE_CLOSE,0);
+   double emaFast_Previous=iMA(NULL,0,10,0,MODE_EMA,PRICE_CLOSE,1);
+
+   double emaSlow_Current=iMA(NULL,0,20,0,MODE_EMA,PRICE_CLOSE,0);
+   double emaSlow_Previous=iMA(NULL,0,20,0,MODE_EMA,PRICE_CLOSE,1);
+
+   if(OrdersTotal()==0)
+     {
+
+      if((emaFast_Previous<emaSlow_Previous)&&(emaFast_Current>emaSlow_Current))
+        {
+
+
+         ticket=OrderSend(Symbol(),OP_BUY,setLotsize(),Ask,3,Ask-stopLoss*Point,Ask+takeProfit*Point,"My First Order");
+         if(ticket < 0)   //if not open order
+           {
+            Alert("Error");
+           }
+
+        }
+
+      if((emaFast_Previous>emaSlow_Previous)&&(emaFast_Current<emaSlow_Current))
+        {
+
+
+         ticket=OrderSend(Symbol(),OP_SELL,setLotsize(),Bid,3,Bid+stopLoss*Point,Bid-takeProfit*Point,"My Sell Order");
+         if(ticket < 0)   //if not open order
+           {
+            Alert("Error");
+           }
+
+        }
+
+     }
+
+//   for(int i=OrdersTotal()-1; i>=0; i--) //
+//     {
+//
+//
+//      if(OrderSelect(i,SELECT_BY_POS,MODE_TRADES))
+//        {
+//
+//         if((emaFast_Previous>emaSlow_Previous)&&(emaFast_Current<emaSlow_Current))
+//           {
+//
+//            if(OrderType()==OP_BUY)
+//              {
+//               bool orderBuyClose=OrderClose(OrderTicket(),OrderLots(),Bid,5,Green);
+//
+//               if(orderBuyClose =false)
+//                 {
+//                  Alert("Error OrderCose #",GetLastError());
+//                 }
+//              }
+//           }
+//
+//         //----------//
+//         if((emaFast_Previous<emaSlow_Previous)&&(emaFast_Current>emaSlow_Current))
+//           {
+//
+//            if(OrderType()==OP_SELL)
+//              {
+//               bool orderSellClose=OrderClose(OrderTicket(),OrderLots(),Ask,5,Green);
+//
+//               if(orderSellClose =false)
+//                 {
+//                  Alert("Error OrderCose #",GetLastError());
+//                 }
+//              }
+//           }
+//        }
+//     }
+
+    TrailStop(trailStop);
+
+
+  }
+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+void TrailStop(double trail)
+  {
+   static int ticketUpdate;
+   for(int i=0; i<=OrdersTotal(); i++)
+     {
+
+
+      //why need to add
+      if(!OrderSelect(i,SELECT_BY_POS,MODE_TRADES))
+        {
+         continue;
+        }
+
+      if(OrderSymbol()!=Symbol())
+        {
+         continue;
+        }
+
+      if(OrderType()==OP_BUY)
+        {
+
+         if((Bid-OrderOpenPrice()<trailStop*Point)&&(OrderStopLoss()<Bid-trailStop*Point))
+           {
+
+            ticketUpdate=OrderModify(OrderTicket(),OrderOpenPrice(),Bid-trailStop*Point,OrderTakeProfit(),0,Green);
+
+           }
+
+         if(ticketUpdate<0)
+           {
+            Alert("Error in OrderModify Ticket Update",GetLastError());
+           }
+
+        }
+
+
+      if(OrderType()==OP_SELL)
+        {
+
+         if((OrderOpenPrice()-Ask > trailStop*Point)&&(OrderStopLoss()>Ask+trailStop * Point))
+           {
+
+            ticketUpdate=OrderModify(OrderTicket(),OrderOpenPrice(),Ask+trailStop*Point,OrderTakeProfit(),0,Green);
+
+           }
+
+         if(ticketUpdate<0)
+           {
+            Alert("Error in OrderModify Ticket Update",GetLastError());
+           }
+
+        }
+
+     }
+
+
+  
+
+  }
+
+ double setLotsize()
+     {
+
+         static double lastAccountBalance;
+         
+         
+          if(lastAccountBalance<=AccountBalance()){
+         
+         lotSize=1;
+               
+         }
+         
+            if(lastAccountBalance>AccountBalance()){
+         
+         if(lotSize==1){
+          lotSize=lotSize*martingale;
+         }
+         
+         else if(lotSize==2){
+            lotSize=lotSize*martingale;
+         }
+         else if(lotSize==4){
+         
+            lotSize=lotSize*martingale;
+         }
+         else if(lotSize==8){
+         
+            lotSize=lotSize*martingale;
+         }
+          else if(lotSize==16){
+         
+            lotSize=lotSize*martingale;
+         }
+         
+         
+         }
+         
+        
+         
+      lastAccountBalance=AccountBalance();
+         
+         
+         return lotSize;
+         
+
+     }
+
+//+------------------------------------------------------------------+
